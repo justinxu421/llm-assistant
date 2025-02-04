@@ -76,7 +76,7 @@ export class ChatPanel {
     ChatPanel.currentPanel = new ChatPanel(panel, context);
   }
 
-  private async _handleUserMessage(text: string): Promise<string> {
+  private async _handleUserMessage(text: string): Promise<void> {
     // Process the message
     const response = await this._chatService.processMessage(text);
 
@@ -86,9 +86,6 @@ export class ChatPanel {
       text: response,
       isUser: false,
     });
-
-    // No need to return the response since we've already posted it
-    return "";
   }
 
   private async _loadChatHistory() {
@@ -220,7 +217,9 @@ export class ChatPanel {
                         const message = event.data;
                         switch (message.command) {
                             case 'receiveMessage':
-                                addMessage(message.text, message.isUser || false);
+                                if (message.text) {  // Only add message if there's text
+                                    addMessage(message.text, message.isUser || false);
+                                }
                                 break;
                             case 'clearMessages':
                                 messagesContainer.innerHTML = '';
