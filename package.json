@@ -14,8 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "llm-assistant.helloWorld",
-        "title": "Hello World"
+        "command": "llm-assistant.greet",
+        "title": "Hello"
+      },
+      {
+        "command": "llm-assistant.newCommand",
+        "title": "My New Command"
       }
     ]
   },
