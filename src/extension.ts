@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
   let openChat = vscode.commands.registerCommand(
     "llm-assistant.openChat",
     () => {
-      ChatPanel.createOrShow();
+      ChatPanel.createOrShow(context);
     }
   );
 
