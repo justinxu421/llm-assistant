@@ -20,6 +20,10 @@
       {
         "command": "llm-assistant.newCommand",
         "title": "My New Command"
+      },
+      {
+        "command": "llm-assistant.openChat",
+        "title": "Open Chat Assistant"
       }
     ]
   },

@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
+import { ChatPanel } from "./chatPanel";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -26,9 +27,15 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  let openChat = vscode.commands.registerCommand(
+    "llm-assistant.openChat",
+    () => {
+      ChatPanel.createOrShow();
+    }
+  );
+
   // Register both commands
-  context.subscriptions.push(helloWorld);
-  context.subscriptions.push(newCommand);
+  context.subscriptions.push(helloWorld, newCommand, openChat);
 }
 
 // This method is called when your extension is deactivated
