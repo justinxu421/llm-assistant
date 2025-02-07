@@ -10,23 +10,6 @@ export function activate(context: vscode.ExtensionContext) {
   // This line of code will only be executed once when your extension is activated
   console.log('Congratulations, your extension "llm-assistant" is now active!');
 
-  // Existing hello world command
-  let helloWorld = vscode.commands.registerCommand(
-    "llm-assistant.greet",
-    () => {
-      vscode.window.showInformationMessage("Hello World from llm-assistant!");
-    }
-  );
-
-  // New command
-  let newCommand = vscode.commands.registerCommand(
-    "llm-assistant.newCommand",
-    () => {
-      // Your command implementation here
-      vscode.window.showInformationMessage("Executed new command!");
-    }
-  );
-
   let openChat = vscode.commands.registerCommand(
     "llm-assistant.openChat",
     () => {
@@ -35,8 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register both commands
-  context.subscriptions.push(helloWorld, newCommand, openChat);
+  context.subscriptions.push(openChat);
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
