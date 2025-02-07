@@ -66,9 +66,18 @@ export class ChatService {
     let responseText = "";
 
     try {
+      // Convert chat history to ollama message format
+      const messages = this.history.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Add current message
+      messages.push({ role: "user", content: userMessage });
+
       const streamResponse = await ollama.chat({
         model: "llama3.2",
-        messages: [{ role: "user", content: userMessage }],
+        messages: messages, // Pass the entire conversation history
         stream: true,
       });
 
