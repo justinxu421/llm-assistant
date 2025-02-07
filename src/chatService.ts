@@ -65,9 +65,6 @@ export class ChatService {
   }
 
   private async generateResponse(userMessage: string): Promise<string> {
-    const activeEditor = vscode.window.activeTextEditor;
-    const currentFile = activeEditor?.document.getText() || "";
-    const currentLanguage = activeEditor?.document.languageId || "";
     let responseText = "";
     let isInCodeBlock = false;
     let codeBlockLanguage = "";
@@ -79,7 +76,10 @@ export class ChatService {
         content: this.formatMessage(msg),
       }));
 
-      messages.push({ role: "user", content: this.formatMessage({ role: "user", content: userMessage }) });
+      messages.push({
+        role: "user",
+        content: this.formatMessage({ role: "user", content: userMessage }),
+      });
 
       const streamResponse = await ollama.chat({
         model: "llama3.2",
@@ -89,7 +89,7 @@ export class ChatService {
 
       for await (const part of streamResponse) {
         const chunk = part.message.content;
-        
+
         // Handle code block detection
         if (chunk.includes("```")) {
           const codeBlockMatch = chunk.match(/```(\w*)/);
@@ -113,7 +113,7 @@ export class ChatService {
           const formattedChunk = this.formatTextChunk(chunk);
           responseText += formattedChunk;
         }
-        
+
         this.responseEmitter.fire(chunk);
       }
       return responseText;
@@ -145,9 +145,9 @@ export class ChatService {
   }
 
   public getFormattedHistory(): ChatMessage[] {
-    return this.history.map(msg => ({
+    return this.history.map((msg) => ({
       role: msg.role,
-      content: this.formatMessage(msg)
+      content: this.formatMessage(msg),
     }));
   }
 
