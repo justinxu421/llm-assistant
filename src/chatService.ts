@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import ollama from "ollama";
 
+type OllamaModelType = "llama3.2" | "deepseek-r1" | "mistral";
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -12,19 +14,57 @@ export class ChatService {
   private context: vscode.ExtensionContext;
   private responseEmitter: vscode.EventEmitter<string> =
     new vscode.EventEmitter<string>();
+  private currentModel: OllamaModelType;
 
   public readonly onResponse: vscode.Event<string> = this.responseEmitter.event;
 
   private constructor(context: vscode.ExtensionContext) {
     this.context = context;
+    this.currentModel = "llama3.2"; // default model
     this.loadHistory();
   }
 
-  public static getInstance(context: vscode.ExtensionContext): ChatService {
+  public static async createInstance(
+    context: vscode.ExtensionContext
+  ): Promise<ChatService> {
     if (!ChatService.instance) {
       ChatService.instance = new ChatService(context);
+      await ChatService.instance.selectModel();
     }
     return ChatService.instance;
+  }
+
+  public static getInstance(): ChatService {
+    if (!ChatService.instance) {
+      throw new Error(
+        "ChatService not initialized. Call createInstance first."
+      );
+    }
+    return ChatService.instance;
+  }
+
+  private async selectModel(): Promise<void> {
+    const models: OllamaModelType[] = ["llama3.2", "deepseek-r1", "mistral"];
+    const selectedModel = await vscode.window.showQuickPick(models, {
+      placeHolder: "Select an AI model to use",
+      title: "Choose AI Model",
+    });
+
+    if (
+      selectedModel === "llama3.2" ||
+      selectedModel === "deepseek-r1" ||
+      selectedModel === "mistral"
+    ) {
+      this.currentModel = selectedModel;
+      // Emit model change event
+      this.responseEmitter.fire(
+        JSON.stringify({ type: "modelUpdate", model: selectedModel })
+      );
+    }
+  }
+
+  public getCurrentModel(): OllamaModelType {
+    return this.currentModel;
   }
 
   private loadHistory() {
@@ -82,7 +122,7 @@ export class ChatService {
       });
 
       const streamResponse = await ollama.chat({
-        model: "llama3.2",
+        model: this.currentModel, // Use the selected model
         messages: messages,
         stream: true,
       });
@@ -158,5 +198,9 @@ export class ChatService {
   public async clearHistory(): Promise<void> {
     this.history = [];
     await this.saveHistory();
+  }
+
+  public async changeModel(): Promise<void> {
+    await this.selectModel();
   }
 }

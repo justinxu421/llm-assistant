@@ -43,9 +43,10 @@
         #message-input {
             flex: 1;
             padding: 5px;
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
+            background-color: #f0f0f0;
+            color: #000000; /* Changed from var(--vscode-input-foreground) to black */
             border: 1px solid var(--vscode-input-border);
+            border-radius: 10px;
         }
         button {
             padding: 5px 10px;
@@ -59,7 +60,6 @@
             cursor: not-allowed;
         }
         #clear-history {
-            margin-bottom: 10px;
             background-color: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
         }
@@ -79,11 +79,43 @@
             60% { content: "Thinking.."; }
             80%, 100% { content: "Thinking..."; }
         }
+        #header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .header-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #model-display {
+            padding: 5px 10px;
+            background-color: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        #model-display:hover {
+            background-color: var(--vscode-badge-foreground);
+            color: var(--vscode-badge-background);
+        }
     </style>
 </head>
 <body>
     <div id="chat-container">
-        <button id="clear-history">Clear History</button>
+        <div id="header-container">
+            <button id="clear-history">Clear History</button>
+            <div class="header-group">
+                <button id="new-chat">New Chat</button>
+                <div id="model-display" role="button" title="Click to change model"></div>
+            </div>
+        </div>
         <div id="messages"></div>
         <div id="input-container">
             <input type="text" id="message-input" placeholder="Type your message...">
@@ -96,6 +128,8 @@
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
         const clearHistoryButton = document.getElementById('clear-history');
+        const modelDisplay = document.getElementById('model-display');
+        const newChatButton = document.getElementById('new-chat');
         
         let currentResponseDiv = null;
         let loadingDiv = null;
@@ -142,6 +176,22 @@
             if (!isWaitingForResponse) {
                 vscode.postMessage({
                     command: 'clearHistory'
+                });
+            }
+        });
+
+        newChatButton.addEventListener('click', () => {
+            if (!isWaitingForResponse) {
+                vscode.postMessage({
+                    command: 'clearHistory'
+                });
+            }
+        });
+
+        modelDisplay.addEventListener('click', () => {
+            if (!isWaitingForResponse) {
+                vscode.postMessage({
+                    command: 'changeModel'
                 });
             }
         });
@@ -195,6 +245,9 @@
                     
                 case 'receiveMessage':
                     addMessage(message.text, message.isUser);
+                    break;
+                case 'updateModel':
+                    modelDisplay.textContent = `Model: ${message.model}`;
                     break;
             }
         });

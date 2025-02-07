@@ -9,12 +9,9 @@ export class ChatPanel {
   private _disposables: vscode.Disposable[] = [];
   private _chatService: ChatService;
 
-  private constructor(
-    panel: vscode.WebviewPanel,
-    context: vscode.ExtensionContext
-  ) {
+  private constructor(panel: vscode.WebviewPanel, chatService: ChatService) {
     this._panel = panel;
-    this._chatService = ChatService.getInstance(context);
+    this._chatService = chatService;
 
     // Set initial HTML content
     this._panel.webview.html = this._getWebviewContent();
@@ -22,12 +19,31 @@ export class ChatPanel {
     // Load chat history
     this._loadChatHistory();
 
+    // Initialize model display
+    this._panel.webview.postMessage({
+      command: "updateModel",
+      model: this._chatService.getCurrentModel(),
+    });
+
     // Subscribe to streaming responses
     this._chatService.onResponse((chunk) => {
-      this._panel.webview.postMessage({
-        command: "streamResponse",
-        text: chunk,
-      });
+      try {
+        // Try to parse as JSON first (for special messages)
+        const jsonMessage = JSON.parse(chunk);
+        if (jsonMessage.type === "modelUpdate") {
+          this._panel.webview.postMessage({
+            command: "updateModel",
+            model: jsonMessage.model,
+          });
+          return;
+        }
+      } catch {
+        // If not JSON, treat as regular message chunk
+        this._panel.webview.postMessage({
+          command: "streamResponse",
+          text: chunk,
+        });
+      }
     });
 
     // Handle messages from the webview
@@ -42,6 +58,9 @@ export class ChatPanel {
             this._panel.webview.postMessage({
               command: "clearMessages",
             });
+            break;
+          case "changeModel":
+            await this._chatService.changeModel();
             break;
         }
       },
@@ -59,7 +78,7 @@ export class ChatPanel {
     );
   }
 
-  public static createOrShow(context: vscode.ExtensionContext) {
+  public static async createOrShow(context: vscode.ExtensionContext) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -82,7 +101,9 @@ export class ChatPanel {
       }
     );
 
-    ChatPanel.currentPanel = new ChatPanel(panel, context);
+    // Initialize ChatService first
+    const chatService = await ChatService.createInstance(context);
+    ChatPanel.currentPanel = new ChatPanel(panel, chatService);
   }
 
   private async _handleUserMessage(text: string): Promise<void> {
