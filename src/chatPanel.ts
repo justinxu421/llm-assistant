@@ -88,6 +88,11 @@ export class ChatPanel {
 
     // Process the message
     await this._chatService.processMessage(text);
+
+    // Signal that the response is complete
+    this._panel.webview.postMessage({
+      command: "endResponse",
+    });
   }
 
   private async _loadChatHistory() {
@@ -101,143 +106,223 @@ export class ChatPanel {
     }
   }
 
-  private _getWebviewContent() {
-    return `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { 
-                        margin: 0; 
-                        padding: 10px; 
-                        font-family: sans-serif;
-                        height: 100vh;
-                        box-sizing: border-box;
+  private _getWebviewContent(): string {
+    return /*html*/ `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { 
+                    margin: 0; 
+                    padding: 10px; 
+                    font-family: sans-serif;
+                    height: 100vh;
+                    box-sizing: border-box;
+                }
+                #chat-container {
+                    display: flex;
+                    flex-direction: column;
+                    height: calc(100% - 20px); /* Account for body padding */
+                    max-height: 100%;
+                }
+                #messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    margin-bottom: 10px;
+                    padding-right: 10px;
+                }
+                .message {
+                    margin: 5px 0;
+                    padding: 8px;
+                    border-radius: 5px;
+                    word-wrap: break-word;
+                }
+                .user-message {
+                    background-color: var(--vscode-editor-background);
+                    color: var(--vscode-editor-foreground);
+                }
+                .assistant-message {
+                    background-color: var(--vscode-editor-selectionBackground);
+                    color: var(--vscode-editor-foreground);
+                }
+                #input-container {
+                    display: flex;
+                    gap: 5px;
+                    padding: 10px 0;
+                }
+                #message-input {
+                    flex: 1;
+                    padding: 5px;
+                    background-color: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                    border: 1px solid var(--vscode-input-border);
+                }
+                button {
+                    padding: 5px 10px;
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    cursor: pointer;
+                }
+                button:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                #clear-history {
+                    margin-bottom: 10px;
+                    background-color: var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
+                }
+                .loading-indicator {
+                    display: inline-block;
+                    margin-left: 5px;
+                    width: 12px;
+                    height: 12px;
+                    border: 2px solid var(--vscode-editor-foreground);
+                    border-radius: 50%;
+                    border-top-color: transparent;
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    to {
+                        transform: rotate(360deg);
                     }
-                    #chat-container {
-                        display: flex;
-                        flex-direction: column;
-                        height: calc(100% - 20px); /* Account for body padding */
-                        max-height: 100%;
-                    }
-                    #messages {
-                        flex: 1;
-                        overflow-y: auto;
-                        margin-bottom: 10px;
-                        padding-right: 10px;
-                    }
-                    .message {
-                        margin: 5px 0;
-                        padding: 8px;
-                        border-radius: 5px;
-                        word-wrap: break-word;
-                    }
-                    .user-message {
-                        background-color: var(--vscode-editor-background);
-                        color: var(--vscode-editor-foreground);
-                    }
-                    .assistant-message {
-                        background-color: var(--vscode-editor-selectionBackground);
-                        color: var(--vscode-editor-foreground);
-                    }
-                    #input-container {
-                        display: flex;
-                        gap: 5px;
-                        padding: 10px 0;
-                    }
-                    #message-input {
-                        flex: 1;
-                        padding: 5px;
-                        background-color: var(--vscode-input-background);
-                        color: var(--vscode-input-foreground);
-                        border: 1px solid var(--vscode-input-border);
-                    }
-                    button {
-                        padding: 5px 10px;
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        cursor: pointer;
-                    }
-                    #clear-history {
-                        margin-bottom: 10px;
-                        background-color: var(--vscode-button-secondaryBackground);
-                        color: var(--vscode-button-secondaryForeground);
-                    }
-                </style>
-            </head>
-            <body>
-                <div id="chat-container">
-                    <button id="clear-history">Clear History</button>
-                    <div id="messages"></div>
-                    <div id="input-container">
-                        <input type="text" id="message-input" placeholder="Type your message...">
-                        <button id="send-button">Send</button>
-                    </div>
+                }
+                .message.loading {
+                    display: flex;
+                    align-items: center;
+                    background-color: var(--vscode-editor-selectionBackground);
+                    color: var(--vscode-editor-foreground);
+                }
+                .message.loading::after {
+                    content: "Thinking";
+                    animation: dots 1.5s steps(4, end) infinite;
+                }
+                @keyframes dots {
+                    0%, 20% { content: "Thinking"; }
+                    40% { content: "Thinking."; }
+                    60% { content: "Thinking.."; }
+                    80%, 100% { content: "Thinking..."; }
+                }
+            </style>
+        </head>
+        <body>
+            <div id="chat-container">
+                <button id="clear-history">Clear History</button>
+                <div id="messages"></div>
+                <div id="input-container">
+                    <input type="text" id="message-input" placeholder="Type your message...">
+                    <button id="send-button">Send</button>
                 </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    const messagesContainer = document.getElementById('messages');
-                    const messageInput = document.getElementById('message-input');
-                    const sendButton = document.getElementById('send-button');
-                    const clearHistoryButton = document.getElementById('clear-history');
-                    
-                    let currentResponseDiv = null;
+            </div>
+            <script>
+                const vscode = acquireVsCodeApi();
+                const messagesContainer = document.getElementById('messages');
+                const messageInput = document.getElementById('message-input');
+                const sendButton = document.getElementById('send-button');
+                const clearHistoryButton = document.getElementById('clear-history');
+                
+                let currentResponseDiv = null;
+                let loadingDiv = null;
+                let isWaitingForResponse = false;
 
-                    function addMessage(text, isUser) {
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = \`message \${isUser ? 'user-message' : 'assistant-message'}\`;
-                        messageDiv.textContent = text;
-                        messagesContainer.appendChild(messageDiv);
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        return messageDiv;
+                function setInputState(enabled) {
+                    messageInput.disabled = !enabled;
+                    sendButton.disabled = !enabled;
+                    isWaitingForResponse = !enabled;
+                }
+
+                function addMessage(text, isUser) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = \`message \${isUser ? 'user-message' : 'assistant-message'}\`;
+                    messageDiv.textContent = text;
+                    messagesContainer.appendChild(messageDiv);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    return messageDiv;
+                }
+
+                function addLoadingMessage() {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message loading';
+                    messagesContainer.appendChild(messageDiv);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    return messageDiv;
+                }
+
+                function sendMessage() {
+                    const text = messageInput.value.trim();
+                    if (text && !isWaitingForResponse) {
+                        addMessage(text, true);
+                        setInputState(false);
+                        vscode.postMessage({
+                            command: 'sendMessage',
+                            text: text
+                        });
+                        messageInput.value = '';
                     }
+                }
 
-                    function sendMessage() {
-                        const text = messageInput.value.trim();
-                        if (text) {
-                            addMessage(text, true);
-                            vscode.postMessage({
-                                command: 'sendMessage',
-                                text: text
-                            });
-                            messageInput.value = '';
-                        }
-                    }
-
-                    clearHistoryButton.addEventListener('click', () => {
+                clearHistoryButton.addEventListener('click', () => {
+                    if (!isWaitingForResponse) {
                         vscode.postMessage({
                             command: 'clearHistory'
                         });
-                    });
+                    }
+                });
 
-                    sendButton.addEventListener('click', sendMessage);
-                    messageInput.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') {
-                            sendMessage();
-                        }
-                    });
+                sendButton.addEventListener('click', sendMessage);
+                messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !isWaitingForResponse) {
+                        sendMessage();
+                    }
+                });
 
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        switch (message.command) {
-                            case 'startResponse':
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    switch (message.command) {
+                        case 'startResponse':
+                            if (loadingDiv) {
+                                loadingDiv.remove();
+                            }
+                            loadingDiv = addLoadingMessage();
+                            currentResponseDiv = null; // Reset currentResponseDiv
+                            break;
+                            
+                        case 'streamResponse':
+                            if (loadingDiv) {
+                                loadingDiv.remove();
+                                loadingDiv = null;
+                            }
+                            if (!currentResponseDiv) {
                                 currentResponseDiv = addMessage('', false);
-                                break;
-                            case 'streamResponse':
-                                if (currentResponseDiv) {
-                                    currentResponseDiv.textContent += message.text;
-                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                                }
-                                break;
-                            case 'clearMessages':
-                                messagesContainer.innerHTML = '';
-                                break;
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `;
+                            }
+                            currentResponseDiv.textContent += message.text;
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            break;
+                            
+                        case 'endResponse':
+                            if (loadingDiv) {
+                                loadingDiv.remove();
+                                loadingDiv = null;
+                            }
+                            currentResponseDiv = null;
+                            setInputState(true);
+                            break;
+                            
+                        case 'clearMessages':
+                            messagesContainer.innerHTML = '';
+                            currentResponseDiv = null;
+                            loadingDiv = null;
+                            break;
+                            
+                        case 'receiveMessage':
+                            addMessage(message.text, message.isUser);
+                            break;
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    `;
   }
 }
