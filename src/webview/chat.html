@@ -134,6 +134,7 @@
                     text: text
                 });
                 messageInput.value = '';
+                // Remove focus() here since it will be disabled
             }
         }
 
@@ -148,6 +149,7 @@
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !isWaitingForResponse) {
+                e.preventDefault(); // Prevent default to avoid any unwanted behavior
                 sendMessage();
             }
         });
@@ -182,6 +184,7 @@
                     }
                     currentResponseDiv = null;
                     setInputState(true);
+                    setTimeout(() => messageInput.focus(), 0); // Add small delay to ensure focus works
                     break;
                     
                 case 'clearMessages':

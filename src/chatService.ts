@@ -59,31 +59,61 @@ export class ChatService {
     }
   }
 
+  private formatMessage(message: ChatMessage): string {
+    const prefix = message.role === "user" ? "🧑 You:" : "🤖 Assistant:";
+    return `${prefix} ${message.content}`;
+  }
+
   private async generateResponse(userMessage: string): Promise<string> {
     const activeEditor = vscode.window.activeTextEditor;
     const currentFile = activeEditor?.document.getText() || "";
     const currentLanguage = activeEditor?.document.languageId || "";
     let responseText = "";
+    let isInCodeBlock = false;
+    let codeBlockLanguage = "";
+    let codeBlockContent = "";
 
     try {
-      // Convert chat history to ollama message format
       const messages = this.history.map((msg) => ({
         role: msg.role,
-        content: msg.content,
+        content: this.formatMessage(msg),
       }));
 
-      // Add current message
-      messages.push({ role: "user", content: userMessage });
+      messages.push({ role: "user", content: this.formatMessage({ role: "user", content: userMessage }) });
 
       const streamResponse = await ollama.chat({
         model: "llama3.2",
-        messages: messages, // Pass the entire conversation history
+        messages: messages,
         stream: true,
       });
 
       for await (const part of streamResponse) {
         const chunk = part.message.content;
-        responseText += chunk;
+        
+        // Handle code block detection
+        if (chunk.includes("```")) {
+          const codeBlockMatch = chunk.match(/```(\w*)/);
+          if (codeBlockMatch) {
+            isInCodeBlock = !isInCodeBlock;
+            if (isInCodeBlock) {
+              codeBlockLanguage = codeBlockMatch[1];
+              codeBlockContent = "";
+              responseText += `\n\`\`\`${codeBlockLanguage}\n`;
+            } else {
+              responseText += `${codeBlockContent}\n\`\`\`\n`;
+            }
+            continue;
+          }
+        }
+
+        if (isInCodeBlock) {
+          codeBlockContent += chunk;
+        } else {
+          // Format regular text with markdown
+          const formattedChunk = this.formatTextChunk(chunk);
+          responseText += formattedChunk;
+        }
+        
         this.responseEmitter.fire(chunk);
       }
       return responseText;
@@ -91,6 +121,34 @@ export class ChatService {
       console.error("Error generating response:", err);
       return "Sorry, I encountered an error generating a response.";
     }
+  }
+
+  private formatTextChunk(chunk: string): string {
+    let formatted = chunk;
+
+    // Add proper spacing for markdown elements
+    formatted = formatted
+      // Headers
+      .replace(/^(#{1,6})\s/gm, "\n$1 ")
+      // Bullet points
+      .replace(/^[-*•]\s/gm, "\n• ")
+      // Numbered lists
+      .replace(/^\d+\.\s/gm, (match) => `\n${match}`)
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, "**$1**")
+      // Italic text
+      .replace(/\*(.*?)\*/g, "_$1_")
+      // Inline code
+      .replace(/`([^`]+)`/g, "`$1`");
+
+    return formatted;
+  }
+
+  public getFormattedHistory(): ChatMessage[] {
+    return this.history.map(msg => ({
+      role: msg.role,
+      content: this.formatMessage(msg)
+    }));
   }
 
   public getHistory(): ChatMessage[] {
