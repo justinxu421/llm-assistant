@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import ollama from "ollama";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -59,65 +60,25 @@ export class ChatService {
     const activeEditor = vscode.window.activeTextEditor;
     const currentFile = activeEditor?.document.getText() || "";
     const currentLanguage = activeEditor?.document.languageId || "";
+    let responseText = "";
 
     // Simple rule-based responses
     const messageLower = userMessage.toLowerCase();
-
-    if (messageLower.includes("hello") || messageLower.includes("hi")) {
-      return "Hello! How can I help you with your code today?";
-    }
-
-    if (messageLower.includes("current file")) {
-      if (currentFile) {
-        return `The current file is written in ${currentLanguage} and is ${currentFile.length} characters long.`;
-      } else {
-        return "No file is currently open in the editor.";
+    try {
+      const streamResponse = await ollama.chat({
+        model: "llama3.2",
+        messages: [{ role: "user", content: userMessage }],
+        stream: true,
+      });
+      for await (const part of streamResponse) {
+        console.log(part.message.content);
+        responseText += part.message.content;
       }
+      return responseText;
+    } catch (err) {
+      console.error("Error generating response:", err);
+      return "Sorry, I encountered an error generating a response.";
     }
-
-    if (messageLower.includes("help")) {
-      return `I can help you with:
-1. Answering questions about your code
-2. Explaining programming concepts
-3. Providing code suggestions
-4. Analyzing your current file
-What would you like to know more about?`;
-    }
-
-    if (messageLower.includes("clear history")) {
-      this.history = [];
-      await this.saveHistory();
-      return "Chat history has been cleared.";
-    }
-
-    // Context-aware response based on recent conversation
-    const recentMessages = this.history.slice(-4);
-    if (recentMessages.length > 0) {
-      const lastAssistantMessage = recentMessages
-        .reverse()
-        .find((m) => m.role === "assistant");
-      if (lastAssistantMessage && messageLower.includes("explain")) {
-        return `Let me clarify my previous response: ${lastAssistantMessage.content}\n\nIs there something specific you'd like me to explain further?`;
-      }
-    }
-
-    // Code-related queries
-    if (
-      messageLower.includes("code") ||
-      messageLower.includes("function") ||
-      messageLower.includes("bug")
-    ) {
-      if (currentFile) {
-        return `I see you're working with ${currentLanguage} code. Could you specify what aspect you need help with? For example:
-- Code review
-- Bug finding
-- Performance optimization
-- Best practices`;
-      }
-    }
-
-    // Default response with conversation context
-    return `I understand you're asking about "${userMessage}". Could you provide more context or specify your question? I'm here to help with coding and development tasks.`;
   }
 
   public getHistory(): ChatMessage[] {
