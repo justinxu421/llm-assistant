@@ -20,16 +20,20 @@ export class ChatPanel {
     // Load chat history
     this._loadChatHistory();
 
+    // Subscribe to streaming responses
+    this._chatService.onResponse((chunk) => {
+      this._panel.webview.postMessage({
+        command: "streamResponse",
+        text: chunk,
+      });
+    });
+
     // Handle messages from the webview
     this._panel.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.command) {
           case "sendMessage":
-            const response = await this._handleUserMessage(message.text);
-            this._panel.webview.postMessage({
-              command: "receiveMessage",
-              text: response,
-            });
+            await this._handleUserMessage(message.text);
             break;
           case "clearHistory":
             await this._chatService.clearHistory();
@@ -77,15 +81,13 @@ export class ChatPanel {
   }
 
   private async _handleUserMessage(text: string): Promise<void> {
-    // Process the message
-    const response = await this._chatService.processMessage(text);
-
-    // Post only the response
+    // Create a placeholder for the assistant's response
     this._panel.webview.postMessage({
-      command: "receiveMessage",
-      text: response,
-      isUser: false,
+      command: "startResponse",
     });
+
+    // Process the message
+    await this._chatService.processMessage(text);
   }
 
   private async _loadChatHistory() {
@@ -179,6 +181,8 @@ export class ChatPanel {
                     const messageInput = document.getElementById('message-input');
                     const sendButton = document.getElementById('send-button');
                     const clearHistoryButton = document.getElementById('clear-history');
+                    
+                    let currentResponseDiv = null;
 
                     function addMessage(text, isUser) {
                         const messageDiv = document.createElement('div');
@@ -186,6 +190,7 @@ export class ChatPanel {
                         messageDiv.textContent = text;
                         messagesContainer.appendChild(messageDiv);
                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        return messageDiv;
                     }
 
                     function sendMessage() {
@@ -216,9 +221,13 @@ export class ChatPanel {
                     window.addEventListener('message', event => {
                         const message = event.data;
                         switch (message.command) {
-                            case 'receiveMessage':
-                                if (message.text) {  // Only add message if there's text
-                                    addMessage(message.text, message.isUser || false);
+                            case 'startResponse':
+                                currentResponseDiv = addMessage('', false);
+                                break;
+                            case 'streamResponse':
+                                if (currentResponseDiv) {
+                                    currentResponseDiv.textContent += message.text;
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                 }
                                 break;
                             case 'clearMessages':

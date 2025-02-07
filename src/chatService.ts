@@ -10,6 +10,10 @@ export class ChatService {
   private static instance: ChatService;
   private history: ChatMessage[] = [];
   private context: vscode.ExtensionContext;
+  private responseEmitter: vscode.EventEmitter<string> =
+    new vscode.EventEmitter<string>();
+
+  public readonly onResponse: vscode.Event<string> = this.responseEmitter.event;
 
   private constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -56,23 +60,22 @@ export class ChatService {
   }
 
   private async generateResponse(userMessage: string): Promise<string> {
-    // Get the current file if any
     const activeEditor = vscode.window.activeTextEditor;
     const currentFile = activeEditor?.document.getText() || "";
     const currentLanguage = activeEditor?.document.languageId || "";
     let responseText = "";
 
-    // Simple rule-based responses
-    const messageLower = userMessage.toLowerCase();
     try {
       const streamResponse = await ollama.chat({
         model: "llama3.2",
         messages: [{ role: "user", content: userMessage }],
         stream: true,
       });
+
       for await (const part of streamResponse) {
-        console.log(part.message.content);
-        responseText += part.message.content;
+        const chunk = part.message.content;
+        responseText += chunk;
+        this.responseEmitter.fire(chunk);
       }
       return responseText;
     } catch (err) {
