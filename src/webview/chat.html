@@ -2,6 +2,7 @@
 <html>
 <head>
     <style>
+        /* Global Styles */
         body { 
             margin: 0; 
             padding: 10px; 
@@ -9,76 +10,16 @@
             height: 100vh;
             box-sizing: border-box;
         }
+
+        /* Layout Container */
         #chat-container {
             display: flex;
             flex-direction: column;
             height: calc(100% - 20px);
             max-height: 100%;
         }
-        #messages {
-            flex: 1;
-            overflow-y: auto;
-            margin-bottom: 10px;
-            padding-right: 10px;
-        }
-        .message {
-            margin: 5px 0;
-            padding: 8px;
-            border-radius: 5px;
-            word-wrap: break-word;
-        }
-        .user-message {
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-        }
-        .assistant-message {
-            background-color: var(--vscode-editor-selectionBackground);
-            color: var(--vscode-editor-foreground);
-        }
-        #input-container {
-            display: flex;
-            gap: 5px;
-            padding: 10px 0;
-        }
-        #message-input {
-            flex: 1;
-            padding: 5px;
-            background-color: #f0f0f0;
-            color: #000000; /* Changed from var(--vscode-input-foreground) to black */
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 10px;
-        }
-        button {
-            padding: 5px 10px;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            cursor: pointer;
-        }
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        #clear-history {
-            background-color: var(--vscode-button-secondaryBackground);
-            color: var(--vscode-button-secondaryForeground);
-        }
-        .message.loading {
-            display: flex;
-            align-items: center;
-            background-color: var(--vscode-editor-selectionBackground);
-            color: var(--vscode-editor-foreground);
-        }
-        .message.loading::after {
-            content: "Thinking";
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-        @keyframes dots {
-            0%, 20% { content: "Thinking"; }
-            40% { content: "Thinking."; }
-            60% { content: "Thinking.."; }
-            80%, 100% { content: "Thinking..."; }
-        }
+
+        /* Header Styles */
         #header-container {
             display: flex;
             justify-content: space-between;
@@ -105,10 +46,92 @@
             background-color: var(--vscode-badge-foreground);
             color: var(--vscode-badge-background);
         }
+
+        /* Messages Container */
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-right: 10px;
+        }
+
+        /* Message Styles */
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+
+        .assistant-message {
+            background-color: var(--vscode-editor-selectionBackground);
+            color: var(--vscode-editor-foreground);
+        }
+
+        /* Loading Animation */
+        .message.loading {
+            display: flex;
+            align-items: center;
+            background-color: var(--vscode-editor-selectionBackground);
+            color: var(--vscode-editor-foreground);
+        }
+
+        .message.loading::after {
+            content: "Thinking";
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: "Thinking"; }
+            40% { content: "Thinking."; }
+            60% { content: "Thinking.."; }
+            80%, 100% { content: "Thinking..."; }
+        }
+
+        /* Input Area */
+        #input-container {
+            display: flex;
+            gap: 5px;
+            padding: 10px 0;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 5px;
+            background-color: #f0f0f0;
+            color: #000000;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 10px;
+        }
+
+        /* Button Styles */
+        button {
+            padding: 5px 10px;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #clear-history {
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
     </style>
 </head>
 <body>
     <div id="chat-container">
+        <!-- Header Section -->
         <div id="header-container">
             <button id="clear-history">Clear History</button>
             <div class="header-group">
@@ -116,13 +139,19 @@
                 <div id="model-display" role="button" title="Click to change model"></div>
             </div>
         </div>
+
+        <!-- Messages Section -->
         <div id="messages"></div>
+
+        <!-- Input Section -->
         <div id="input-container">
             <input type="text" id="message-input" placeholder="Type your message...">
             <button id="send-button">Send</button>
         </div>
     </div>
+
     <script>
+        // Initialize VS Code API and DOM elements
         const vscode = acquireVsCodeApi();
         const messagesContainer = document.getElementById('messages');
         const messageInput = document.getElementById('message-input');
@@ -131,10 +160,12 @@
         const modelDisplay = document.getElementById('model-display');
         const newChatButton = document.getElementById('new-chat');
         
+        // State variables
         let currentResponseDiv = null;
         let loadingDiv = null;
         let isWaitingForResponse = false;
 
+        // Helper Functions
         function setInputState(enabled) {
             messageInput.disabled = !enabled;
             sendButton.disabled = !enabled;
@@ -168,42 +199,38 @@
                     text: text
                 });
                 messageInput.value = '';
-                // Remove focus() here since it will be disabled
             }
         }
 
+        // Event Listeners
         clearHistoryButton.addEventListener('click', () => {
             if (!isWaitingForResponse) {
-                vscode.postMessage({
-                    command: 'clearHistory'
-                });
+                vscode.postMessage({ command: 'clearHistory' });
             }
         });
 
         newChatButton.addEventListener('click', () => {
             if (!isWaitingForResponse) {
-                vscode.postMessage({
-                    command: 'clearHistory'
-                });
+                vscode.postMessage({ command: 'clearHistory' });
             }
         });
 
         modelDisplay.addEventListener('click', () => {
             if (!isWaitingForResponse) {
-                vscode.postMessage({
-                    command: 'changeModel'
-                });
+                vscode.postMessage({ command: 'changeModel' });
             }
         });
 
         sendButton.addEventListener('click', sendMessage);
+
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !isWaitingForResponse) {
-                e.preventDefault(); // Prevent default to avoid any unwanted behavior
+                e.preventDefault();
                 sendMessage();
             }
         });
 
+        // Message Handler
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
@@ -234,7 +261,7 @@
                     }
                     currentResponseDiv = null;
                     setInputState(true);
-                    setTimeout(() => messageInput.focus(), 0); // Add small delay to ensure focus works
+                    setTimeout(() => messageInput.focus(), 0);
                     break;
                     
                 case 'clearMessages':
@@ -246,6 +273,7 @@
                 case 'receiveMessage':
                     addMessage(message.text, message.isUser);
                     break;
+
                 case 'updateModel':
                     modelDisplay.textContent = `Model: ${message.model}`;
                     break;

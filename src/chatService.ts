@@ -15,6 +15,7 @@ export class ChatService {
   private responseEmitter: vscode.EventEmitter<string> =
     new vscode.EventEmitter<string>();
   private currentModel: OllamaModelType;
+  private temperature: number = 0.7; // Default temperature
 
   public readonly onResponse: vscode.Event<string> = this.responseEmitter.event;
 
@@ -41,6 +42,21 @@ export class ChatService {
       );
     }
     return ChatService.instance;
+  }
+
+  public getTemperature(): number {
+    return this.temperature;
+  }
+
+  public setTemperature(temp: number): void {
+    if (temp < 0 || temp > 2) {
+      throw new Error("Temperature must be between 0 and 2");
+    }
+    this.temperature = temp;
+    // Emit temperature change event
+    this.responseEmitter.fire(
+      JSON.stringify({ type: "temperatureUpdate", temperature: temp })
+    );
   }
 
   private async selectModel(): Promise<void> {
@@ -125,6 +141,9 @@ export class ChatService {
         model: this.currentModel, // Use the selected model
         messages: messages,
         stream: true,
+        options: {
+          temperature: this.temperature,
+        },
       });
 
       for await (const part of streamResponse) {

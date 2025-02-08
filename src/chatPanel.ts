@@ -1,93 +1,45 @@
 import * as vscode from "vscode";
 import { ChatService } from "./chatService";
+import { MessageHandler } from "./messageHandler";
+import { WebviewCommand } from "./types/chat";
 import * as path from "path";
 import * as fs from "fs";
 
 export class ChatPanel {
   public static currentPanel: ChatPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
-  private _disposables: vscode.Disposable[] = [];
-  private _chatService: ChatService;
+  private readonly _chatService: ChatService;
+  private readonly _messageHandler: MessageHandler;
+  private readonly _disposables: vscode.Disposable[] = [];
 
   private constructor(panel: vscode.WebviewPanel, chatService: ChatService) {
     this._panel = panel;
     this._chatService = chatService;
-
-    // Set initial HTML content
-    this._panel.webview.html = this._getWebviewContent();
-
-    // Load chat history
-    this._loadChatHistory();
-
-    // Initialize model display
-    this._panel.webview.postMessage({
-      command: "updateModel",
-      model: this._chatService.getCurrentModel(),
-    });
-
-    // Subscribe to streaming responses
-    this._chatService.onResponse((chunk) => {
-      try {
-        // Try to parse as JSON first (for special messages)
-        const jsonMessage = JSON.parse(chunk);
-        if (jsonMessage.type === "modelUpdate") {
-          this._panel.webview.postMessage({
-            command: "updateModel",
-            model: jsonMessage.model,
-          });
-          return;
-        }
-      } catch {
-        // If not JSON, treat as regular message chunk
-        this._panel.webview.postMessage({
-          command: "streamResponse",
-          text: chunk,
-        });
-      }
-    });
-
-    // Handle messages from the webview
-    this._panel.webview.onDidReceiveMessage(
-      async (message) => {
-        switch (message.command) {
-          case "sendMessage":
-            await this._handleUserMessage(message.text);
-            break;
-          case "clearHistory":
-            await this._chatService.clearHistory();
-            this._panel.webview.postMessage({
-              command: "clearMessages",
-            });
-            break;
-          case "changeModel":
-            await this._chatService.changeModel();
-            break;
-        }
-      },
-      undefined,
-      this._disposables
+    this._messageHandler = new MessageHandler(
+      this._panel.webview,
+      this._chatService
     );
+
+    this.initialize();
 
     // Handle panel disposal
-    this._panel.onDidDispose(
-      () => {
-        ChatPanel.currentPanel = undefined;
-      },
-      null,
-      this._disposables
-    );
+    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
   }
 
-  public static async createOrShow(context: vscode.ExtensionContext) {
+  public static async createOrShow(
+    context: vscode.ExtensionContext
+  ): Promise<void> {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
+    // If we already have a panel, show it
     if (ChatPanel.currentPanel) {
       ChatPanel.currentPanel._panel.reveal(column);
       return;
     }
 
+    // Create a new panel
     const panel = vscode.window.createWebviewPanel(
       "chatAssistant",
       "Chat Assistant",
@@ -106,26 +58,47 @@ export class ChatPanel {
     ChatPanel.currentPanel = new ChatPanel(panel, chatService);
   }
 
-  private async _handleUserMessage(text: string): Promise<void> {
-    // Create a placeholder for the assistant's response
+  private initialize(): void {
+    this._panel.webview.html = this._getWebviewContent();
+    this._loadChatHistory();
+    this.initializeModelDisplay();
+    this.setupEventListeners();
+  }
+
+  private initializeModelDisplay(): void {
     this._panel.webview.postMessage({
-      command: "startResponse",
+      command: WebviewCommand.UpdateModel,
+      model: this._chatService.getCurrentModel(),
     });
-
-    // Process the message
-    await this._chatService.processMessage(text);
-
-    // Signal that the response is complete
     this._panel.webview.postMessage({
-      command: "endResponse",
+      command: WebviewCommand.UpdateTemperature,
+      temperature: this._chatService.getTemperature(),
     });
   }
 
-  private async _loadChatHistory() {
-    const history = this._chatService.getHistory();
+  private setupEventListeners(): void {
+    // Listen to chat service responses
+    this._chatService.onResponse((chunk) => {
+      if (this._panel && this._panel.webview) {
+        this._messageHandler.handleStreamResponse(chunk);
+      }
+    });
+
+    // Listen to webview messages
+    this._panel.webview.onDidReceiveMessage(
+      async (message) => {
+        await this._messageHandler.handleWebviewMessage(message);
+      },
+      undefined,
+      this._disposables
+    );
+  }
+
+  private async _loadChatHistory(): Promise<void> {
+    const history = this._chatService.getFormattedHistory();
     for (const message of history) {
       this._panel.webview.postMessage({
-        command: "receiveMessage",
+        command: WebviewCommand.ReceiveMessage,
         text: message.content,
         isUser: message.role === "user",
       });
@@ -138,14 +111,28 @@ export class ChatPanel {
       "webview",
       "chat.html"
     );
-    let html = fs.readFileSync(filePath, "utf8");
 
-    // Make sure to get the correct URI for the webview
-    const webview = this._panel.webview;
+    try {
+      let html = fs.readFileSync(filePath, "utf8");
+      return html;
+    } catch (error) {
+      console.error(`Failed to read chat.html: ${error}`);
+      return `<html><body>Failed to load chat interface</body></html>`;
+    }
+  }
 
-    // Replace any ${webview.cspSource} if you're using it in your HTML
-    html = html.replace("${webview.cspSource}", webview.cspSource);
+  public dispose(): void {
+    ChatPanel.currentPanel = undefined;
 
-    return html;
+    // Clean up resources
+    this._panel.dispose();
+
+    // Dispose all disposables
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      if (disposable) {
+        disposable.dispose();
+      }
+    }
   }
 }
