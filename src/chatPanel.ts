@@ -11,6 +11,7 @@ export class ChatPanel {
   private readonly _chatService: ChatService;
   private readonly _messageHandler: MessageHandler;
   private readonly _disposables: vscode.Disposable[] = [];
+  private _isDisposed: boolean = false;
 
   private constructor(panel: vscode.WebviewPanel, chatService: ChatService) {
     this._panel = panel;
@@ -59,6 +60,9 @@ export class ChatPanel {
   }
 
   private initialize(): void {
+    if (this._isDisposed) {
+      return;
+    }
     this._panel.webview.html = this._getWebviewContent();
     this._loadChatHistory();
     this.initializeModelDisplay();
@@ -78,30 +82,41 @@ export class ChatPanel {
 
   private setupEventListeners(): void {
     // Listen to chat service responses
-    this._chatService.onResponse((chunk) => {
-      if (this._panel && this._panel.webview) {
+    const responseListener = this._chatService.onResponse((chunk) => {
+      if (!this._isDisposed && this._panel && this._panel.webview) {
         this._messageHandler.handleStreamResponse(chunk);
       }
     });
 
     // Listen to webview messages
-    this._panel.webview.onDidReceiveMessage(
+    const messageListener = this._panel.webview.onDidReceiveMessage(
       async (message) => {
-        await this._messageHandler.handleWebviewMessage(message);
+        if (!this._isDisposed) {
+          await this._messageHandler.handleWebviewMessage(message);
+        }
       },
       undefined,
       this._disposables
     );
+
+    // Add listeners to disposables
+    this._disposables.push(responseListener);
+    this._disposables.push(messageListener);
   }
 
   private async _loadChatHistory(): Promise<void> {
+    if (this._isDisposed) {
+      return;
+    }
     const history = this._chatService.getFormattedHistory();
     for (const message of history) {
-      this._panel.webview.postMessage({
-        command: WebviewCommand.ReceiveMessage,
-        text: message.content,
-        isUser: message.role === "user",
-      });
+      if (!this._isDisposed && this._panel && this._panel.webview) {
+        this._panel.webview.postMessage({
+          command: WebviewCommand.ReceiveMessage,
+          text: message.content,
+          isUser: message.role === "user",
+        });
+      }
     }
   }
 
@@ -122,6 +137,7 @@ export class ChatPanel {
   }
 
   public dispose(): void {
+    this._isDisposed = true;
     ChatPanel.currentPanel = undefined;
 
     // Clean up resources
