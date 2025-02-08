@@ -1,8 +1,14 @@
 {
-  "name": "llm-assistant",
-  "displayName": "llm-assistant",
+  "name": "llm-assistant-ollama",
+  "publisher": "justinxu421",
+  "displayName": "LLM Assistant Ollama",
   "description": "Test assistant to play with LLMs as a VS code extension",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justinxu421/llm-assistant.git"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -40,9 +46,6 @@
   },
   "dependencies": {
     "ollama": "^0.5.12"
-  },
-  "files": [
-    "out/**/*",
-    "src/webview/**/*"
-  ]
+  }
 }
+
