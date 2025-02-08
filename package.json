@@ -3,7 +3,7 @@
   "publisher": "justinxu421",
   "displayName": "LLM Assistant Ollama",
   "description": "Test assistant to play with LLMs as a VS code extension",
-  "version": "0.3.0",
+  "version": "0.2.0",
   "license": "MIT",
   "icon": "images/ollama.png",
   "repository": {
