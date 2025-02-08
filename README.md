@@ -4,7 +4,10 @@ LLM-Assistant project to implement a basic chat interface wrapping an Ollama LLM
 
 ## How to use
 
-1. Press `Command + Shift + P` and select `Open Chat Assistant` to bring up the chat interface
+1. Press `Command + Shift + P` and select `LLM Assistant Ollama: Open Chat Assistant` to bring up the chat interface
+
+   (or the keyboard shortcut `Ctrl+Shift+I` / `Cmd+Shift+I` on Mac)
+
    <img width="725" alt="image" src="https://github.com/user-attachments/assets/4b9bb3b4-5312-44ee-b9c6-695caa54b3c1" />
 
 2. Ability to select ollama model to use
