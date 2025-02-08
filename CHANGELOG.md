@@ -36,7 +36,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release
 - Basic extension structure
 - Project setup and configuration
-
-[0.3.0]: https://github.com/justinxu421/llm-assistant/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/justinxu421/llm-assistant/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/justinxu421/llm-assistant/releases/tag/v0.1.0
