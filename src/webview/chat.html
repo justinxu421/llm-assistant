@@ -137,6 +137,19 @@
             <div class="header-group">
                 <button id="new-chat">New Chat</button>
                 <div id="model-display" role="button" title="Click to change model"></div>
+                <div id="temperature-control">
+                    <label for="temperature-slider">🌡️</label>
+                    <input 
+                        type="range" 
+                        id="temperature-slider" 
+                        min="0" 
+                        max="2" 
+                        step="0.1" 
+                        value="0.7"
+                        title="Temperature"
+                    >
+                    <span id="temperature-display">0.7</span>
+                </div>
             </div>
         </div>
 
@@ -277,6 +290,27 @@
                 case 'updateModel':
                     modelDisplay.textContent = `Model: ${message.model}`;
                     break;
+
+                case 'updateTemperature':
+                    if (typeof message.temperature === 'number') {
+                        temperatureSlider.value = message.temperature.toString();
+                        temperatureDisplay.textContent = message.temperature.toFixed(1);
+                    }
+                    break;
+            }
+        });
+
+        // Temperature Slider Event Listener
+        const temperatureSlider = document.getElementById('temperature-slider');
+        const temperatureDisplay = document.getElementById('temperature-display');
+        temperatureSlider.addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value);
+            if (!isNaN(value)) {
+                vscode.postMessage({
+                    command: 'updateTemperature',
+                    temperature: value
+                });
+                temperatureDisplay.textContent = value.toFixed(1);
             }
         });
     </script>

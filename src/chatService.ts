@@ -48,14 +48,14 @@ export class ChatService {
     return this.temperature;
   }
 
-  public setTemperature(temp: number): void {
-    if (temp < 0 || temp > 2) {
+  public updateTemperature(temperature: number): void {
+    if (temperature < 0 || temperature > 2) {
       throw new Error("Temperature must be between 0 and 2");
     }
-    this.temperature = temp;
+    this.temperature = temperature;
     // Emit temperature change event
     this.responseEmitter.fire(
-      JSON.stringify({ type: "temperatureUpdate", temperature: temp })
+      JSON.stringify({ type: "temperatureUpdate", temperature })
     );
   }
 
