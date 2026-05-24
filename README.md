@@ -16,4 +16,8 @@ LLM-Assistant project to implement a basic chat interface wrapping an Ollama LLM
 3. Chat with the assistant
    <img width="1395" alt="image" src="https://github.com/user-attachments/assets/fa4cf3f2-116f-401f-a610-a4cd8e13ed46" />
 
-4. Press `Clear History` when you're done
+4. **Attach editor context (optional):** Above the message input, enable **Include selection** and/or **Include active file** to send code from the active editor with your question. Large files are truncated automatically. Only your typed message appears in chat history; context is sent to Ollama with the request.
+
+   > Do not attach files that contain secrets or credentials.
+
+5. Press `Clear History` when you're done

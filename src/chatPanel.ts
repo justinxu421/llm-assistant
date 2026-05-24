@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ChatService } from "./chatService";
+import { getEditorContextAvailability } from "./editorContext";
 import { MessageHandler } from "./messageHandler";
 import { WebviewCommand } from "./types/chat";
 import * as path from "path";
@@ -66,7 +67,18 @@ export class ChatPanel {
     this._panel.webview.html = this._getWebviewContent();
     this._loadChatHistory();
     this.initializeModelDisplay();
+    this.postContextStatus();
     this.setupEventListeners();
+  }
+
+  private postContextStatus(): void {
+    if (this._isDisposed || !this._panel.webview) {
+      return;
+    }
+    this._panel.webview.postMessage({
+      command: WebviewCommand.ContextStatus,
+      context: getEditorContextAvailability(),
+    });
   }
 
   private initializeModelDisplay(): void {
@@ -99,9 +111,17 @@ export class ChatPanel {
       this._disposables
     );
 
-    // Add listeners to disposables
+    const selectionListener = vscode.window.onDidChangeTextEditorSelection(
+      () => this.postContextStatus()
+    );
+    const activeEditorListener = vscode.window.onDidChangeActiveTextEditor(() =>
+      this.postContextStatus()
+    );
+
     this._disposables.push(responseListener);
     this._disposables.push(messageListener);
+    this._disposables.push(selectionListener);
+    this._disposables.push(activeEditorListener);
   }
 
   private async _loadChatHistory(): Promise<void> {

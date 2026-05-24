@@ -127,6 +127,34 @@
             background-color: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
         }
+
+        #context-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        #context-controls label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        #context-controls label.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #context-status {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            flex: 1;
+            min-width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -156,6 +184,18 @@
         <!-- Messages Section -->
         <div id="messages"></div>
 
+        <div id="context-controls">
+            <label id="include-selection-label" title="Attach the current editor selection to your message">
+                <input type="checkbox" id="include-selection">
+                Include selection
+            </label>
+            <label id="include-file-label" title="Attach the full active file (truncated if large)">
+                <input type="checkbox" id="include-file">
+                Include active file
+            </label>
+            <span id="context-status"></span>
+        </div>
+
         <!-- Input Section -->
         <div id="input-container">
             <input type="text" id="message-input" placeholder="Type your message...">
@@ -172,8 +212,17 @@
         const clearHistoryButton = document.getElementById('clear-history');
         const modelDisplay = document.getElementById('model-display');
         const newChatButton = document.getElementById('new-chat');
+        const includeSelectionCheckbox = document.getElementById('include-selection');
+        const includeFileCheckbox = document.getElementById('include-file');
+        const includeSelectionLabel = document.getElementById('include-selection-label');
+        const includeFileLabel = document.getElementById('include-file-label');
+        const contextStatus = document.getElementById('context-status');
         
         // State variables
+        let contextAvailability = {
+            hasActiveEditor: false,
+            hasSelection: false
+        };
         let currentResponseDiv = null;
         let loadingDiv = null;
         let isWaitingForResponse = false;
@@ -183,6 +232,7 @@
             messageInput.disabled = !enabled;
             sendButton.disabled = !enabled;
             isWaitingForResponse = !enabled;
+            updateContextControls();
         }
 
         function addMessage(text, isUser) {
@@ -202,6 +252,28 @@
             return messageDiv;
         }
 
+        function updateContextControls() {
+            const { hasActiveEditor, hasSelection, filePath, selectionLineCount } = contextAvailability;
+            includeSelectionCheckbox.disabled = !hasActiveEditor || !hasSelection || isWaitingForResponse;
+            includeFileCheckbox.disabled = !hasActiveEditor || isWaitingForResponse;
+            includeSelectionLabel.classList.toggle('disabled', includeSelectionCheckbox.disabled);
+            includeFileLabel.classList.toggle('disabled', includeFileCheckbox.disabled);
+
+            if (!hasActiveEditor) {
+                contextStatus.textContent = 'Open a file in the editor to attach context';
+            } else if (hasSelection && selectionLineCount) {
+                contextStatus.textContent = `${filePath || 'file'} — selection: ${selectionLineCount} line(s)`;
+            } else if (filePath) {
+                contextStatus.textContent = filePath;
+            } else {
+                contextStatus.textContent = '';
+            }
+
+            if (!hasSelection && includeSelectionCheckbox.checked) {
+                includeSelectionCheckbox.checked = false;
+            }
+        }
+
         function sendMessage() {
             const text = messageInput.value.trim();
             if (text && !isWaitingForResponse) {
@@ -209,7 +281,9 @@
                 setInputState(false);
                 vscode.postMessage({
                     command: 'sendMessage',
-                    text: text
+                    text: text,
+                    includeSelection: includeSelectionCheckbox.checked,
+                    includeFile: includeFileCheckbox.checked
                 });
                 messageInput.value = '';
             }
@@ -297,8 +371,17 @@
                         temperatureDisplay.textContent = message.temperature.toFixed(1);
                     }
                     break;
+
+                case 'contextStatus':
+                    if (message.context) {
+                        contextAvailability = message.context;
+                        updateContextControls();
+                    }
+                    break;
             }
         });
+
+        updateContextControls();
 
         // Temperature Slider Event Listener
         const temperatureSlider = document.getElementById('temperature-slider');

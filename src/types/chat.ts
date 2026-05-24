@@ -8,7 +8,15 @@ export enum WebviewCommand {
   UpdateModel = 'updateModel',
   UpdateTemperature = 'updateTemperature',
   ClearMessages = 'clearMessages',
-  ReceiveMessage = 'receiveMessage'
+  ReceiveMessage = 'receiveMessage',
+  ContextStatus = 'contextStatus',
+}
+
+export interface EditorContextStatus {
+  hasActiveEditor: boolean;
+  hasSelection: boolean;
+  filePath?: string;
+  selectionLineCount?: number;
 }
 
 export interface WebviewMessage {
@@ -17,6 +25,9 @@ export interface WebviewMessage {
   model?: string;
   temperature?: number;
   isUser?: boolean;
+  includeSelection?: boolean;
+  includeFile?: boolean;
+  context?: EditorContextStatus;
 }
 
 export interface ChatMessage {

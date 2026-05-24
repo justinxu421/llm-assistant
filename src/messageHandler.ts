@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
 import { ChatService } from "./chatService";
+import {
+  formatEditorContextPrompt,
+  getEditorContextParts,
+} from "./editorContext";
 import { WebviewCommand, WebviewMessage } from "./types/chat";
 
 export class MessageHandler {
@@ -22,7 +26,7 @@ export class MessageHandler {
     switch (message.command) {
       case WebviewCommand.SendMessage:
         if (message.text) {
-          await this.handleUserMessage(message.text);
+          await this.handleUserMessage(message.text, message);
         }
         break;
       case WebviewCommand.ClearHistory:
@@ -39,12 +43,22 @@ export class MessageHandler {
     }
   }
 
-  private async handleUserMessage(text: string): Promise<void> {
+  private async handleUserMessage(
+    text: string,
+    message: WebviewMessage
+  ): Promise<void> {
     this.webview.postMessage({
       command: WebviewCommand.StartResponse,
     });
 
-    await this.chatService.processMessage(text);
+    const parts = getEditorContextParts({
+      includeSelection: message.includeSelection,
+      includeFile: message.includeFile,
+    });
+    const apiContent =
+      parts.length > 0 ? formatEditorContextPrompt(parts, text) : text;
+
+    await this.chatService.processMessage(text, apiContent);
 
     this.webview.postMessage({
       command: WebviewCommand.EndResponse,

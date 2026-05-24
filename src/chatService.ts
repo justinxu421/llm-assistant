@@ -94,13 +94,17 @@ export class ChatService {
     await this.context.globalState.update("chatHistory", this.history);
   }
 
-  public async processMessage(userMessage: string): Promise<string> {
+  public async processMessage(
+    userMessage: string,
+    apiUserContent?: string
+  ): Promise<string> {
     try {
-      // Add user message to history
+      // Store display text only; API may include editor context
       this.history.push({ role: "user", content: userMessage });
 
-      // Process the message and generate a response
-      const response = await this.generateResponse(userMessage);
+      const response = await this.generateResponse(
+        apiUserContent ?? userMessage
+      );
 
       // Add assistant response to history
       this.history.push({ role: "assistant", content: response });
@@ -120,21 +124,25 @@ export class ChatService {
     return `${prefix} ${message.content}`;
   }
 
-  private async generateResponse(userMessage: string): Promise<string> {
+  private async generateResponse(lastUserApiContent: string): Promise<string> {
     let responseText = "";
     let isInCodeBlock = false;
     let codeBlockLanguage = "";
     let codeBlockContent = "";
 
     try {
-      const messages = this.history.map((msg) => ({
+      const priorMessages = this.history.slice(0, -1);
+      const messages = priorMessages.map((msg) => ({
         role: msg.role,
         content: this.formatMessage(msg),
       }));
 
       messages.push({
         role: "user",
-        content: this.formatMessage({ role: "user", content: userMessage }),
+        content: this.formatMessage({
+          role: "user",
+          content: lastUserApiContent,
+        }),
       });
 
       const streamResponse = await ollama.chat({
