@@ -17,3 +17,14 @@ LLM-Assistant project to implement a basic chat interface wrapping an Ollama LLM
    <img width="1395" alt="image" src="https://github.com/user-attachments/assets/fa4cf3f2-116f-401f-a610-a4cd8e13ed46" />
 
 4. Press `Clear History` when you're done
+
+## Development checks
+
+Use Node.js 22.12 or newer and install with `npm ci`. Run `npm test` for
+TypeScript compilation, lint, and the VS Code extension tests. On headless Linux,
+run `xvfb-run -a npm test`. `npm audit` includes development dependencies.
+
+The test CLI currently requires Mocha 11, which retains a vulnerable serializer.
+The override scopes Mocha 12 to `@vscode/test-cli`; it retains the Mocha test API
+and resolves current serializer and diff advisories. Remove the override once
+the CLI supports the patched Mocha version directly.
